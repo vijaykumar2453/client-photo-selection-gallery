@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Gallery Login</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <p class="eyebrow">YOUR PRIVATE GALLERY</p>
+    <h1>Welcome</h1>
+    <p class="muted">Sign in to view and select your photographs.</p>
+    <form id="clientLogin">
+      <input type="hidden" name="token" value="<%= token %>">
+      <label>Username</label><input name="username" required>
+      <label>Password</label><input name="password" type="password" required>
+      <button type="submit">Open gallery</button>
+      <p id="message" class="message"></p>
+    </form>
+  </main>
+  <script>
+    document.getElementById("clientLogin").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      const response = await fetch("/api/client-access/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: form.get("token"), username: form.get("username"), password: form.get("password") })
+      });
+      const result = await response.json();
+      document.getElementById("message").textContent = result.message;
+      if (response.ok) {
+        localStorage.setItem("clientToken", result.token);
+        localStorage.setItem("clientGallery", JSON.stringify(result.gallery));
+        window.location.href = "/client/gallery";
+      }
+    });
+  </script>
+</body>
+</html>

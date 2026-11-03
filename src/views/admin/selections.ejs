@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Selections</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="page">
+    <header class="topbar"><div><p class="eyebrow">ADMIN</p><h1>Client selections</h1></div><a href="/admin/dashboard">Back to galleries</a></header>
+    <section class="panel">
+      <button id="download">Download selected originals (ZIP)</button>
+      <p id="summary" class="muted"></p>
+      <div id="photos" class="photo-grid"></div>
+    </section>
+  </main>
+  <script>
+    const token = localStorage.getItem("adminToken");
+    const galleryId = "<%= galleryId %>";
+    if (!token) window.location.href = "/admin/login";
+    const headers = { Authorization: `Bearer ${token}` };
+
+    async function loadSelection() {
+      const response = await fetch(`/api/selections/${galleryId}`, { headers });
+      const result = await response.json();
+      const photos = result.selectedPhotoIds || [];
+      document.getElementById("summary").textContent = `${photos.length} selected · Status: ${result.status || "pending"}`;
+      document.getElementById("photos").innerHTML = photos.map(photo => `<article class="photo-card"><img src="${photo.thumbnailUrl || photo.imageUrl}" alt="Selected photo"><p>${photo.fileName}</p></article>`).join("") || "No selections yet.";
+    }
+
+    document.getElementById("download").onclick = async () => {
+      const response = await fetch(`/api/selections/${galleryId}/download`, { headers });
+      if (!response.ok) {
+        const result = await response.json();
+        return alert(result.message);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url; link.download = "selected-photos.zip"; link.click();
+      URL.revokeObjectURL(url);
+    };
+    loadSelection();
+  </script>
+</body>
+</html>

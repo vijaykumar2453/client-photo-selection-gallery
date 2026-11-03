@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <main class="page">
+    <header class="topbar"><div><p class="eyebrow">PHOTO STUDIO</p><h1>Galleries</h1></div><button id="logout" class="secondary">Log out</button></header>
+    <section class="panel">
+      <h2>Create a gallery</h2>
+      <form id="createGallery" class="inline-form">
+        <input name="title" placeholder="Gallery title" required>
+        <input name="clientName" placeholder="Client name" required>
+        <input name="description" placeholder="Description">
+        <button>Create</button>
+      </form>
+      <p id="message" class="message"></p>
+    </section>
+    <section class="panel">
+      <h2>Your galleries</h2>
+      <div id="galleries" class="gallery-list">Loading...</div>
+    </section>
+  </main>
+  <script>
+    const token = localStorage.getItem("adminToken");
+    if (!token) window.location.href = "/admin/login";
+    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+
+    async function loadGalleries() {
+      const response = await fetch("/api/galleries", { headers });
+      if (response.status === 401) return window.location.href = "/admin/login";
+      const galleries = await response.json();
+      document.getElementById("galleries").innerHTML = galleries.map(gallery => `
+        <article class="gallery-row">
+          <div><strong>${escapeHtml(gallery.title)}</strong><p>${escapeHtml(gallery.clientName)}</p><small>ID: ${gallery._id}</small></div>
+          <div class="actions">
+            <button onclick="uploadPhotos('${gallery._id}')">Upload photos</button>
+            <button class="secondary" onclick="createAccess('${gallery._id}')">Client access</button>
+            <a href="/admin/selections/${gallery._id}">Selections</a>
+          </div>
+        </article>`).join("") || "No galleries created yet.";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
+    }
+
+    document.getElementById("createGallery").addEventListener("submit", async event => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.target));
+      const response = await fetch("/api/galleries", { method: "POST", headers, body: JSON.stringify(data) });
+      const result = await response.json();
+      document.getElementById("message").textContent = result.privateLink ? `Created. Private link: ${result.privateLink}` : result.message;
+      if (response.ok) { event.target.reset(); loadGalleries(); }
+    });
+
+    async function createAccess(galleryId) {
+      const username = prompt("Create client username:");
+      const password = prompt("Create client password (minimum 8 characters):");
+      if (!username || !password) return;
+      const response = await fetch("/api/client-access", { method: "POST", headers, body: JSON.stringify({ galleryId, username, password }) });
+      const result = await response.json();
+      alert(result.message);
+    }
+
+    async function uploadPhotos(galleryId) {
+      const picker = document.createElement("input");
+      picker.type = "file"; picker.multiple = true; picker.accept = "image/*";
+      picker.onchange = async () => {
+        const body = new FormData();
+        Array.from(picker.files).forEach(file => body.append("photos", file));
+        const response = await fetch(`/api/galleries/${galleryId}/photos`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
+        const result = await response.json();
+        alert(result.message);
+      };
+      picker.click();
+    }
+
+    document.getElementById("logout").onclick = () => { localStorage.removeItem("adminToken"); window.location.href = "/admin/login"; };
+    loadGalleries();
+  </script>
+</body>
+</html>
