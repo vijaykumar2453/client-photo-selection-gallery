@@ -4,8 +4,10 @@ const mongoose = require("mongoose");
 const ClientAccess = require("../models/clientAccess.model");
 const Gallery = require("../models/gallery.model");
 
+// Client accounts are scoped to a single gallery and managed by its admin.
 async function createClientAccess(req, res) {
   const { galleryId, username, password } = req.body;
+  // Validate IDs and credentials before querying or hashing user-provided data.
   if (!galleryId || !username || !password) {
     return res.status(400).json({ message: "Gallery ID, username and password are required" });
   }
@@ -19,6 +21,7 @@ async function createClientAccess(req, res) {
     return res.status(400).json({ message: "Password must contain at least 8 characters" });
   }
 
+  // The authenticated admin may create accounts only in their own gallery.
   const gallery = await Gallery.findOne({ _id: galleryId, adminId: req.admin._id });
   if (!gallery) return res.status(404).json({ message: "Gallery not found" });
 
@@ -44,6 +47,7 @@ async function getGalleryClients(req, res) {
     return res.status(400).json({ message: "Invalid gallery ID" });
   }
 
+  // Confirm ownership before listing account details for a gallery.
   const gallery = await Gallery.findOne({
     _id: req.params.galleryId,
     adminId: req.admin._id
@@ -58,7 +62,8 @@ async function getGalleryClients(req, res) {
 }
 
 async function getMyGallery(req, res) {
-  const gallery = await Gallery.findOne({ _id: req.client.galleryId, isActive: true });
+  // The client ID comes from authentication middleware, not from caller-controlled input.
+  const gallery = await Gallery.findOne({ _id: req.clientAccess.galleryId, isActive: true });
   if (!gallery) return res.status(404).json({ message: "Gallery not found" });
   res.json(gallery);
 }
@@ -74,6 +79,7 @@ async function updateClientStatus(req, res) {
   const client = await ClientAccess.findById(req.params.id);
   if (!client) return res.status(404).json({ message: "Client access not found" });
 
+  // Hide accounts outside this admin's galleries with the same not-found response.
   const gallery = await Gallery.findOne({ _id: client.galleryId, adminId: req.admin._id });
   if (!gallery) return res.status(404).json({ message: "Client access not found" });
 
@@ -82,4 +88,30 @@ async function updateClientStatus(req, res) {
   res.json({ message: "Client access updated", isActive: client.isActive });
 }
 
-module.exports = { createClientAccess, getGalleryClients, getMyGallery, updateClientStatus };
+async function updateClientPassword(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(400).json({ message: "Invalid client ID" });
+  }
+  if (typeof req.body.password !== "string" || req.body.password.length < 8) {
+    return res.status(400).json({ message: "Password must contain at least 8 characters" });
+  }
+
+  const client = await ClientAccess.findById(req.params.id);
+  if (!client) return res.status(404).json({ message: "Client access not found" });
+
+  // Verify gallery ownership before allowing the password to be changed.
+  const gallery = await Gallery.findOne({ _id: client.galleryId, adminId: req.admin._id });
+  if (!gallery) return res.status(404).json({ message: "Client access not found" });
+
+  client.passwordHash = await bcrypt.hash(req.body.password, 10);
+  await client.save();
+  res.json({ message: "Client password updated", username: client.username });
+}
+
+module.exports = {
+  createClientAccess,
+  getGalleryClients,
+  getMyGallery,
+  updateClientStatus,
+  updateClientPassword
+};

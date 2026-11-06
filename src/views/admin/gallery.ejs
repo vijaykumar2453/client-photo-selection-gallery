@@ -1,0 +1,41 @@
+<%# Admin workspace for organizing folders and managing gallery photos. %>
+<%- include('../partials/head', { pageTitle: 'Gallery Management' }) %>
+<body data-gallery-id="<%= galleryId %>">
+    <main class="workspace">
+        <header class="page-heading">
+            <div>
+                <a href="/admin/dashboard" class="back-link">← Dashboard</a>
+                <p class="eyebrow">GALLERY MANAGEMENT</p>
+                <h1 id="title">Gallery</h1>
+                <p id="description" class="muted"></p>
+            </div>
+            <button id="logout" class="outline" type="button">Log out</button>
+        </header>
+        <section class="content-card">
+            <div class="section-heading"><div><p class="eyebrow">ORGANIZATION</p><h2>Folders</h2></div></div>
+            <form id="folderForm" class="form-row">
+                <input name="name" placeholder="New folder name" required>
+                <input name="description" placeholder="Description (optional)">
+                <button class="primary" type="submit">Add folder</button>
+            </form>
+            <p id="message" class="message" role="status"></p>
+            <div id="folders" class="folder-grid"></div>
+        </section>
+        <section class="content-card">
+            <div class="section-heading">
+                <div><p class="eyebrow">PHOTO LIBRARY</p><h2 id="folderTitle">Select a folder</h2></div>
+                <div class="upload-actions">
+                    <label class="upload-button is-disabled">＋ Upload photos
+                    <input id="photoFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/tiff" multiple hidden disabled>
+                    </label>
+                    <label class="upload-button">＋ Upload a folder
+                        <input id="directoryFiles" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/tiff" webkitdirectory directory multiple hidden>
+                    </label>
+                </div>
+            </div>
+            <p id="uploadHint" class="muted" role="status">Select a gallery folder for individual photos, or upload a folder with its subfolders preserved.</p>
+            <div id="photos" class="photo-grid"></div>
+            <button id="loadMore" class="outline load-more hidden" type="button">Load more photos</button>
+        </section>
+    </main>
+    <%- include('../partials/footer', { pageScript: '/js/admin-gallery.js' }) %>

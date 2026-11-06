@@ -1,86 +1,178 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
+<%# Admin overview for gallery metrics, gallery management, and client access. %>
+<%- include('../partials/head', { pageTitle: 'Dashboard' }) %>
 <body>
-  <main class="page">
-    <header class="topbar"><div><p class="eyebrow">PHOTO STUDIO</p><h1>Galleries</h1></div><button id="logout" class="secondary">Log out</button></header>
-    <section class="panel">
-      <h2>Create a gallery</h2>
-      <form id="createGallery" class="inline-form">
-        <input name="title" placeholder="Gallery title" required>
-        <input name="clientName" placeholder="Client name" required>
-        <input name="description" placeholder="Description">
-        <button>Create</button>
-      </form>
-      <p id="message" class="message"></p>
-    </section>
-    <section class="panel">
-      <h2>Your galleries</h2>
-      <div id="galleries" class="gallery-list">Loading...</div>
-    </section>
-  </main>
-  <script>
-    const token = localStorage.getItem("adminToken");
-    if (!token) window.location.href = "/admin/login";
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-
-    async function loadGalleries() {
-      const response = await fetch("/api/galleries", { headers });
-      if (response.status === 401) return window.location.href = "/admin/login";
-      const galleries = await response.json();
-      document.getElementById("galleries").innerHTML = galleries.map(gallery => `
-        <article class="gallery-row">
-          <div><strong>${escapeHtml(gallery.title)}</strong><p>${escapeHtml(gallery.clientName)}</p><small>ID: ${gallery._id}</small></div>
-          <div class="actions">
-            <button onclick="uploadPhotos('${gallery._id}')">Upload photos</button>
-            <button class="secondary" onclick="createAccess('${gallery._id}')">Client access</button>
-            <a href="/admin/selections/${gallery._id}">Selections</a>
-          </div>
-        </article>`).join("") || "No galleries created yet.";
-    }
-
-    function escapeHtml(value) {
-      return String(value || "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[char]));
-    }
-
-    document.getElementById("createGallery").addEventListener("submit", async event => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(event.target));
-      const response = await fetch("/api/galleries", { method: "POST", headers, body: JSON.stringify(data) });
-      const result = await response.json();
-      document.getElementById("message").textContent = result.privateLink ? `Created. Private link: ${result.privateLink}` : result.message;
-      if (response.ok) { event.target.reset(); loadGalleries(); }
-    });
-
-    async function createAccess(galleryId) {
-      const username = prompt("Create client username:");
-      const password = prompt("Create client password (minimum 8 characters):");
-      if (!username || !password) return;
-      const response = await fetch("/api/client-access", { method: "POST", headers, body: JSON.stringify({ galleryId, username, password }) });
-      const result = await response.json();
-      alert(result.message);
-    }
-
-    async function uploadPhotos(galleryId) {
-      const picker = document.createElement("input");
-      picker.type = "file"; picker.multiple = true; picker.accept = "image/*";
-      picker.onchange = async () => {
-        const body = new FormData();
-        Array.from(picker.files).forEach(file => body.append("photos", file));
-        const response = await fetch(`/api/galleries/${galleryId}/photos`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body });
-        const result = await response.json();
-        alert(result.message);
-      };
-      picker.click();
-    }
-
-    document.getElementById("logout").onclick = () => { localStorage.removeItem("adminToken"); window.location.href = "/admin/login"; };
-    loadGalleries();
-  </script>
-</body>
-</html>
+    <div class="app-shell">
+        <aside class="sidebar"><a class="brand" href="/admin/dashboard">Photo<span>Selection</span></a>
+            <p class="side-label">WORKSPACE</p><a class="nav-link active" href="#overview">Overview</a><a
+                class="nav-link" href="#gallerySection">Galleries</a><a class="nav-link"
+                href="#clientsSection">Clients</a><button id="adminDetailsToggle" class="nav-link" type="button"
+                aria-expanded="false" aria-controls="adminDetailsPanel">Admin details</button>
+            <button id="logout" class="nav-link logout">Log out</button>
+            <div class="side-note">Your studio, all in one place.</div>
+        </aside>
+        <main class="main-content">
+            <header class="page-heading">
+                <div>
+                    <p class="eyebrow">PHOTOGRAPHER WORKSPACE</p>
+                    <h1>Overview</h1>
+                    <p class="muted">Manage galleries, clients and photo selections.</p>
+                </div><button class="primary" id="openCreate">＋ Create gallery</button>
+            </header>
+            <section id="overview" class="stats-grid">
+                <article class="stat-card"><span>Total galleries</span><strong id="galleryCount">—</strong></article>
+                <article class="stat-card"><span>Active galleries</span><strong id="activeCount">—</strong></article>
+                <article class="stat-card"><span>Welcome back</span><strong id="adminName">Photographer</strong>
+                </article>
+            </section>
+            <section id="gallerySection" class="content-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">YOUR WORK</p>
+                        <h2>Recent galleries</h2>
+                    </div><input id="search" class="search" placeholder="Search galleries...">
+                </div>
+                <div id="galleryList" class="gallery-list">
+                    <p class="muted">Loading galleries...</p>
+                </div>
+            </section>
+            <section id="clientsSection" class="content-card">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">ACCESS MANAGEMENT</p>
+                        <h2>Client access</h2>
+                    </div><select id="clientGallery" class="search">
+                        <option value="">Choose a gallery</option>
+                    </select>
+                </div>
+                <div id="clientList" class="table-wrap">
+                    <p class="muted">Choose a gallery to view its clients.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="adminDetailsPanel" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="adminDetailsTitle">
+        <div class="modal-card">
+            <button class="modal-close" id="closeAdminDetails" type="button" aria-label="Close">×</button>
+            <p class="eyebrow">ACCOUNT SETTINGS</p>
+            <h2 id="adminDetailsTitle">Admin details</h2>
+            <p class="muted">Update your name, username or email. Enter a new password only if you want to change it.</p>
+            <form id="adminDetailsForm">
+                <label for="adminDetailsName">Name</label>
+                <input id="adminDetailsName" name="name" maxlength="100" required>
+                <label for="adminDetailsUsername">Username</label>
+                <input id="adminDetailsUsername" name="username" minlength="3" maxlength="32"
+                    pattern="[A-Za-z0-9._-]{3,32}" title="Use 3-32 letters, numbers, dots, underscores or hyphens" required>
+                <label for="adminDetailsEmail">Email</label>
+                <input id="adminDetailsEmail" name="email" type="email" maxlength="254"
+                    pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Enter a valid email address" required>
+                <label for="currentAdminPassword">Current password (required to save)</label>
+                <input id="currentAdminPassword" name="currentPassword" type="password"
+                    autocomplete="current-password" required>
+                <label for="newAdminAccountPassword">New password (optional, 8-72 bytes)</label>
+                <input id="newAdminAccountPassword" name="newPassword" type="password"
+                    autocomplete="new-password" minlength="8" maxlength="72">
+                <label for="confirmAdminAccountPassword">Confirm new password</label>
+                <input id="confirmAdminAccountPassword" name="confirmPassword" type="password"
+                    autocomplete="new-password" minlength="8" maxlength="72">
+                <button class="primary full" type="submit">Save admin details</button>
+                <p id="adminDetailsMessage" class="message" role="status"></p>
+            </form>
+        </div>
+    </div>
+    <%# Gallery setup collects the gallery details before the separate client-login step. %>
+    <div id="galleryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="gallerySetupTitle">
+        <div class="modal-card">
+            <button class="modal-close" data-close="galleryModal" aria-label="Close">×</button>
+            <p class="eyebrow">STEP 1 OF 2 · GALLERY SETUP</p>
+            <h2 id="gallerySetupTitle">Create gallery</h2>
+            <p class="muted">First add the gallery details. Next, create a client login and test it.</p>
+            <form id="galleryForm">
+                <label>Gallery title</label><input name="title" required placeholder="e.g. Rahul & Priya Wedding">
+                <label>Client name</label><input name="clientName" required>
+                <label>Description</label><textarea name="description" rows="3"></textarea>
+                <label>Photo selection limit</label><input name="selectionLimit" type="number" min="1" value="300" required>
+                <button class="primary full" type="submit">Continue to client login</button>
+                <p id="galleryMessage" class="message" role="status"></p>
+            </form>
+        </div>
+    </div>
+    <div id="accessModal" class="modal hidden">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accessTitle">
+            <button class="modal-close" data-close="accessModal" aria-label="Close">×</button>
+            <p class="eyebrow">PRIVATE CLIENT ACCESS</p>
+            <h2 id="accessTitle">Create client login</h2>
+            <p id="accessDescription" class="muted"></p>
+            <form id="accessForm">
+                <input type="hidden" name="galleryId">
+                <label>Username</label><input name="username" required minlength="3" autocomplete="off">
+                <label>Password (at least 8 characters)</label><input name="password" type="password" required minlength="8" autocomplete="new-password">
+                <button class="primary full" type="submit">Create and verify login</button>
+                <p id="accessMessage" class="message" role="status"></p>
+            </form>
+            <section id="accessResult" class="hidden">
+                <p class="setup-success">Client login created. Share these details with your client.</p>
+                <label for="clientPrivateLink">Private gallery link</label>
+                <div class="copy-field"><input id="clientPrivateLink" readonly><button class="outline small" id="copyClientDetails" type="button">Copy details</button></div>
+                <label for="createdClientUsername">Username</label><input id="createdClientUsername" readonly>
+                <label for="createdClientPassword">Password</label><input id="createdClientPassword" readonly>
+                <button class="primary full" id="verifyClientLogin" type="button">Test client login</button>
+                <p id="verificationMessage" class="message" role="status"></p>
+                <button class="outline full" id="finishAccess" type="button">Done</button>
+            </section>
+        </div>
+    </div>
+    <div id="clientCredentialsModal" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="clientCredentialsTitle">
+        <div class="modal-card">
+            <button class="modal-close" data-close="clientCredentialsModal" aria-label="Close">×</button>
+            <p class="eyebrow">CLIENT LOGIN DETAILS</p>
+            <h2 id="clientCredentialsTitle">Client credentials</h2>
+            <p class="muted">Passwords are stored securely and can’t be viewed. Set a new password to share updated credentials.</p>
+            <label for="existingClientUsername">Username</label>
+            <input id="existingClientUsername" readonly>
+            <label for="existingClientLink">Private gallery link</label>
+            <input id="existingClientLink" readonly>
+            <form id="clientPasswordForm">
+                <label for="newClientPassword">New password (at least 8 characters)</label>
+                <input id="newClientPassword" name="password" type="password" minlength="8" autocomplete="new-password" required>
+                <button class="primary full" type="submit">Save new password</button>
+            </form>
+            <p id="clientPasswordMessage" class="message" role="status"></p>
+            <section id="updatedCredentials" class="hidden">
+                <p class="setup-success">Password updated. Share these details with your client.</p>
+                <label for="updatedClientUsername">Username</label>
+                <input id="updatedClientUsername" readonly>
+                <label for="updatedClientPassword">New password</label>
+                <div class="copy-field">
+                    <input id="updatedClientPassword" readonly>
+                    <button class="outline small" id="copyUpdatedCredentials" type="button">Copy details</button>
+                </div>
+            </section>
+        </div>
+    </div>
+    <%# Keep gallery actions and the archive confirmation together in this management dialog. %>
+    <div id="manageGalleryModal" class="modal hidden" role="dialog" aria-modal="true"
+        aria-labelledby="manageGalleryTitle">
+        <div class="modal-card">
+            <button class="modal-close" data-close="manageGalleryModal" aria-label="Close">×</button>
+            <p class="eyebrow">GALLERY OPTIONS</p>
+            <h2 id="manageGalleryTitle">Manage gallery</h2>
+            <div id="galleryActions" class="gallery-actions">
+                <button class="outline" data-gallery-action="folders">Manage folders &amp; photos</button>
+                <button class="outline" data-gallery-action="clients">View clients</button>
+                <button class="outline" data-gallery-action="copy-link">Copy private link</button>
+                <button class="outline archive-action" data-gallery-action="archive">Archive gallery</button>
+                <button class="danger" data-gallery-action="delete">Delete gallery permanently</button>
+            </div>
+            <div id="archiveConfirmation" class="hidden">
+                <p class="muted">Archive this gallery? Client access will be disabled.</p>
+                <div class="archive-buttons">
+                    <button class="outline" id="cancelArchive" type="button">Cancel</button>
+                    <button class="primary" id="confirmArchive" type="button">Archive gallery</button>
+                </div>
+            </div>
+            <p id="manageGalleryMessage" class="message" role="status"></p>
+        </div>
+    </div>
+    <%- include('../partials/footer', { pageScript: '/js/admin-dashboard.js' }) %>

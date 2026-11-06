@@ -1,65 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Your Photo Gallery</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
+<%# Client gallery for browsing folders, choosing favorites, and submitting selections. %>
+<%- include('../partials/head', { pageTitle: 'Your Gallery' }) %>
 <body>
-  <main class="page">
-    <header class="topbar"><div><p class="eyebrow">YOUR PRIVATE GALLERY</p><h1 id="galleryTitle">Your photos</h1></div><button id="logout" class="secondary">Log out</button></header>
-    <section class="panel">
-      <div class="selection-bar"><span id="count">0 selected</span><button id="submit">Submit selections</button></div>
-      <div id="photos" class="photo-grid">Loading photos...</div>
-      <p id="message" class="message"></p>
-    </section>
-  </main>
-  <script>
-    const token = localStorage.getItem("clientToken");
-    const gallery = JSON.parse(localStorage.getItem("clientGallery") || "null");
-    if (!token || !gallery) window.location.href = "/";
-    const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-    let selected = new Set();
-
-    async function loadGallery() {
-      document.getElementById("galleryTitle").textContent = gallery.title;
-      const [photoResponse, selectionResponse] = await Promise.all([
-        fetch(`/api/galleries/${gallery.id}/photos`, { headers }),
-        fetch("/api/selections/mine", { headers })
-      ]);
-      if (photoResponse.status === 401) return window.location.href = "/";
-      const photos = await photoResponse.json();
-      const saved = await selectionResponse.json();
-      selected = new Set((saved.selectedPhotoIds || []).map(photo => String(photo._id || photo)));
-      document.getElementById("photos").innerHTML = photos.map(photo => `
-        <label class="photo-card">
-          <img src="${photo.thumbnailUrl || photo.imageUrl}" alt="Gallery photograph">
-          <span><input type="checkbox" value="${photo._id}" ${selected.has(photo._id) ? "checked" : ""}> Select photo</span>
-        </label>`).join("") || "No photographs uploaded yet.";
-      document.querySelectorAll(".photo-card input").forEach(input => input.addEventListener("change", () => {
-        input.checked ? selected.add(input.value) : selected.delete(input.value);
-        updateCount();
-      }));
-      updateCount();
-    }
-
-    function updateCount() { document.getElementById("count").textContent = `${selected.size} selected`; }
-
-    document.getElementById("submit").onclick = async () => {
-      const saveResponse = await fetch("/api/selections/mine", { method: "PUT", headers, body: JSON.stringify({ photoIds: [...selected] }) });
-      const saveResult = await saveResponse.json();
-      if (!saveResponse.ok) return document.getElementById("message").textContent = saveResult.message;
-      const submitResponse = await fetch("/api/selections/mine/submit", { method: "POST", headers });
-      const submitResult = await submitResponse.json();
-      document.getElementById("message").textContent = submitResult.message;
-    };
-
-    document.getElementById("logout").onclick = () => {
-      localStorage.removeItem("clientToken"); localStorage.removeItem("clientGallery");
-      window.location.href = "/";
-    };
-    loadGallery();
-  </script>
-</body>
-</html>
+    <main class="workspace">
+        <header class="page-heading">
+            <div>
+                <%- include('../partials/brand', { brandHref: '/client/gallery' }) %>
+                <p class="eyebrow">YOUR PRIVATE GALLERY</p>
+                <h1 id="galleryTitle">Your photographs</h1>
+                <p id="galleryDescription" class="muted">Choose your favourites.</p>
+            </div>
+            <button id="logout" class="outline" type="button">Log out</button>
+        </header>
+        <section class="content-card">
+            <div class="section-heading">
+                <div><p class="eyebrow">YOUR ALBUM</p><h2 id="folderHeading">All folders</h2></div>
+                <span id="count" class="status">0 selected</span>
+            </div>
+            <div id="folders" class="folder-grid"></div>
+            <div class="selection-toolbar">
+                <span id="limitText" class="muted"></span>
+                <div class="selection-actions">
+                    <span id="draftStatus" class="muted" role="status">Draft saved</span>
+                    <button id="saveDraft" class="outline" type="button" disabled>Save draft</button>
+                    <button id="submit" class="primary" type="button">Submit final selections</button>
+                </div>
+            </div>
+            <p id="message" class="message" role="status"></p>
+            <div id="photos" class="photo-grid">Loading your photos...</div>
+            <button id="loadMore" class="outline load-more hidden" type="button">Load more photos</button>
+        </section>
+    </main>
+    <%- include('../partials/footer', { pageScript: '/js/client-gallery.js' }) %>

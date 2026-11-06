@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "7b2e12d1-54d2-4b8b-9ad7-4b0b5ecb12a1",
     "name": "Client Photo Selection Gallery - All APIs",
-    "description": "Run requests in the displayed order. First set adminEmail/adminPassword from your .env and run npm run seed-admin. Then start the server. Admin Login saves adminToken automatically. Create Gallery saves galleryId and folderToken. Create Client Access generates a fresh username for each run and saves clientAccessId; Client Login is placed immediately after it and saves clientToken. Create Folder saves folderId. Upload Photos requires selecting a local image file in the photos form-data field and working Cloudinary credentials. Selection APIs require an uploaded photo. Keep Archive Gallery, Delete Folder and Delete Photo for cleanup/testing only after the other requests.",
+    "description": "Create the first admin account from the /admin/login page, then set the matching adminEmail/adminPassword collection variables. Configure SMTP settings to receive password reset links. Start the server and run Admin Login to save adminToken automatically. Create Gallery saves galleryId and folderToken. Create Client Access generates a fresh username for each run and saves clientAccessId; Client Login is placed immediately after it and saves clientToken. Create Folder saves folderId. Upload Photos requires selecting a local image file in the photos form-data field and working Cloudinary credentials. Selection APIs require an uploaded photo. Keep Archive Gallery, Delete Gallery, Delete Folder and Delete Photo for cleanup/testing only after the other requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -18,7 +18,7 @@
     },
     {
       "key": "adminPassword",
-      "value": "ChangeThisPassword123",
+      "value": "",
       "type": "string"
     },
     {
@@ -87,7 +87,7 @@
               }
             ],
             "url": "{{baseUrl}}/api/auth/admin/login",
-            "description": "Log in with the admin account created by seed-admin. Saves adminToken automatically.",
+            "description": "Log in with the admin account created from /admin/login. Saves adminToken automatically.",
             "auth": {
               "type": "noauth"
             },
@@ -109,7 +109,7 @@
                 "exec": [
                   "if (pm.response.code === 200) { const j = pm.response.json(); if (j.token) pm.collectionVariables.set('adminToken', j.token); }",
                   "pm.test('Admin login succeeded', function () { pm.response.to.have.status(200); });",
-                  "if (pm.response.code !== 200) console.log('Check adminEmail/adminPassword collection variables and run npm run seed-admin first.');"
+                  "if (pm.response.code !== 200) console.log('Check adminEmail/adminPassword collection variables and create the first admin account from /admin/login.');"
                 ]
               }
             }
@@ -744,10 +744,29 @@
         {
           "name": "Archive Gallery",
           "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/galleries/{{galleryId}}/archive",
+            "description": "Archives the gallery and disables its client accounts. Run this last because it disables client access.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Gallery Permanently",
+          "request": {
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/api/galleries/{{galleryId}}",
-            "description": "Archives the gallery and disables its client accounts. Run this last because it disables client access.",
+            "description": "Permanently deletes the gallery, its photos from Cloudinary, client accounts, folders, and selections. This cannot be undone. Run this last.",
             "auth": {
               "type": "bearer",
               "bearer": [

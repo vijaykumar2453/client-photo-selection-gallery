@@ -1,41 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Login</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body class="login-page">
-  <main class="login-card">
-    <p class="eyebrow">PRIVATE PHOTO GALLERIES</p>
-    <h1>Admin sign in</h1>
-    <p class="muted">Manage client galleries and photo selections.</p>
-    <form id="adminLogin">
-      <label>Email</label>
-      <input name="email" type="email" required>
-      <label>Password</label>
-      <input name="password" type="password" required>
-      <button type="submit">Sign in</button>
-      <p id="message" class="message"></p>
-    </form>
-  </main>
-  <script>
-    document.getElementById("adminLogin").addEventListener("submit", async event => {
-      event.preventDefault();
-      const form = new FormData(event.target);
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.get("email"), password: form.get("password") })
-      });
-      const result = await response.json();
-      document.getElementById("message").textContent = result.message;
-      if (response.ok) {
-        localStorage.setItem("adminToken", result.token);
-        window.location.href = "/admin/dashboard";
-      }
-    });
-  </script>
-</body>
-</html>
+<%# Admin sign-in and password-reset forms; public admin signup is intentionally not offered. %>
+<%- include('../partials/head', { pageTitle: 'Admin Login' }) %>
+<body class="auth-page">
+    <main class="auth-card">
+        <%- include('../partials/brand', { brandHref: '/admin/login' }) %>
+        <p class="eyebrow">PHOTOGRAPHER WORKSPACE</p>
+        <form id="loginForm">
+            <h1>Welcome back</h1>
+            <p class="muted">Sign in to manage your galleries and clients.</p>
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="username" maxlength="254" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Enter a valid email address" required>
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+            <button class="primary full" type="submit">Sign in</button>
+            <p id="message" class="message" role="status"></p>
+            <button id="forgotLink" class="text-link" type="button">Forgot password?</button>
+        </form>
+        <form id="resetRequestForm" class="hidden">
+            <h1>Reset password</h1>
+            <p class="muted">Enter your admin email and we’ll send you a password reset link.</p>
+            <label for="resetEmail">Email</label>
+            <input id="resetEmail" name="email" type="email" autocomplete="username" maxlength="254" pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Enter a valid email address" required>
+            <button class="primary full" type="submit">Send reset link</button>
+            <p class="message" role="status"></p>
+            <button class="text-link backToLogin" type="button">Back to sign in</button>
+        </form>
+        <form id="completeResetForm" class="hidden">
+            <h1>Choose a new password</h1>
+            <p class="muted">Reset links expire after one hour and can only be used once.</p>
+            <input id="resetToken" name="token" type="hidden">
+            <label for="newAdminPassword">New password (8-72 bytes)</label>
+            <input id="newAdminPassword" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" required>
+            <label for="confirmAdminPassword">Confirm new password</label>
+            <input id="confirmAdminPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="72" required>
+            <button class="primary full" type="submit">Update password</button>
+            <p class="message" role="status"></p>
+        </form>
+    </main>
+    <%- include('../partials/footer', { pageScript: '/js/admin-login.js' }) %>

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+// The admin reference controls ownership; folderToken is the unguessable private-link key.
 const gallerySchema = new mongoose.Schema({
   adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   title: { type: String, required: true, trim: true },

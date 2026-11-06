@@ -1,3 +1,4 @@
+// Convert unmatched URLs into a JSON response before the general error handler runs.
 function notFound(req, res, next) {
   res.status(404).json({ message: `Route not found: ${req.originalUrl}` });
 }
@@ -5,6 +6,7 @@ function notFound(req, res, next) {
 function errorHandler(error, req, res, next) {
   console.error(error);
 
+  // Map common database and upload failures to client errors instead of generic server errors.
   if (error.name === "ValidationError") {
     return res.status(400).json({ message: error.message });
   }

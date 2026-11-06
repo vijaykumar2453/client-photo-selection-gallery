@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const User = require("../models/user.model");
 const ClientAccess = require("../models/clientAccess.model");
 
+// Tokens identify a role and record; this middleware reloads the record for each protected request.
+// Read bearer tokens consistently for both roles; other authorization schemes are not accepted.
 function getToken(req) {
   const header = req.headers.authorization || "";
   if (header.startsWith("Bearer ")) return header.slice(7);
@@ -19,6 +21,7 @@ async function requireAdmin(req, res, next) {
       return res.status(403).json({ message: "Admin access only" });
     }
 
+    // Reload the account so deleted admins lose access even while an old token is unexpired.
     const admin = await User.findById(decoded.id);
     if (!admin) return res.status(401).json({ message: "Admin account not found" });
     req.admin = admin;
@@ -38,11 +41,12 @@ async function requireClient(req, res, next) {
       return res.status(403).json({ message: "Client access only" });
     }
 
+    // Reload account status on each request so a disabled client cannot keep using its token.
     const client = await ClientAccess.findById(decoded.id);
     if (!client || !client.isActive) {
       return res.status(401).json({ message: "Client account is disabled or missing" });
     }
-    req.client = client;
+    req.clientAccess = client;
     next();
   } catch (error) {
     res.status(401).json({ message: "Invalid or expired token" });
